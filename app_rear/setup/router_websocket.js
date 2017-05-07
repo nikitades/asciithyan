@@ -9,7 +9,7 @@ export default (io) => {
                 socket.emit('msg', {name: 'ok'});
                 let processor;
                 try {
-                    processor = new Asciithyan(file, {resolution: 1});
+                    processor = new Asciithyan(file, {resolution: 35});
                     let picture = await processor.makeAscii();
                     socket.emit('msg', {name: 'finished', text: picture});
                 } catch (err) {

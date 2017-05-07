@@ -17,8 +17,10 @@ export default class Asciithyan {
             charset: ['█', '▓', '▒', '░', '@', '≡', '§', '€', '#', 'Ø', 'O', '=', '¤', '®', '+', ':', ',', '.', ' '],
             resolution: 5
         }, options);
+        this.coef = 1.8;
         this.max = 255;
-        this.resolution = options.resolution;
+        this.xResolution = options.resolution;
+        this.yResolution = this.xResolution * this.coef;
         this.charset = options.charset;
         this.tempName = uuid();
         this.tempPath = options.tempPath + this.tempName;
@@ -52,19 +54,7 @@ export default class Asciithyan {
 
             this.chunks = this.squareAnalysis();
             this.text = this.textify();
-
             res(this.text);
-
-
-            //TODO: написать конструктор сетки с анализом
-            /**
-             * Здесь мы уже знаем что файл это картинка нужного типа.
-             * - Теперь нужно сделать развилку на гиф и не гиф (два метода)
-             * - потом анализатор сегмента (управляемый размер чанка, один метод)
-             * - потом клеить гиф из этого
-             * - потом -> base64 или что запрошено
-             */
-            // res(this.blob.toString('base64'));
             this.destroy();
         });
     }
@@ -99,19 +89,19 @@ export default class Asciithyan {
     }
 
     squareAnalysis() {
-        let chunks = [];
-        let __i = 0;
-        for (let y = 0; y < this.sizes.width + 1; y += this.resolution) {
+        const chunks = [];
+        const __i = 0;
+        for (let y = 0; y < this.sizes.width + 1; y += this.yResolution) {
             if (y > this.sizes.height) continue; //для каждого сегмента по разрешению по игреку
-            let yChunk = [];
-            for (let x = 0; x < this.sizes.height + 1; x += this.resolution) {
+            const yChunk = [];
+            for (let x = 0; x < this.sizes.height + 1; x += this.xResolution) {
                 if (x > this.sizes.height) continue;//для каждого сегмента по разрешению по иксу
                 //имеем координаты начал квадратиков, считаем суммарный цвет квадрата
-                let grays = [];
-                for (let _y = y; _y < (y + this.resolution); _y++) { //для y
-                    for (let _x = x; _x < (x + this.resolution); _x++) { //для x
-                        let {r, g, b} = this.getColors(_x, _y);
-                        let average = (r + g + b) / 3;
+                const grays = [];
+                for (let _y = y; _y < (y + this.yResolution); _y++) { //для y
+                    for (let _x = x; _x < (x + this.xResolution); _x++) { //для x
+                        const {r, g, b} = this.getColors(_x, _y);
+                        const average = (r + g + b) / 3;
                         grays.push(average);
                     }
                 }

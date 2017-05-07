@@ -21,6 +21,6 @@ export default (app) => {
     app.use(pug(_root + '/app_rear/views'));
     app.use(serve(_root + '/web'));
     app.use(err);
-    app.use(controllers(_root + '/app_rear/controllers'));
+    app.use(controllers);
     app.use(router.routes());
 }
