@@ -26,7 +26,7 @@ file_io.on('msg', (msg) => {
 let onSubmit = (e) => {
     e.preventDefault();
     let file = e.target.srcfile.files[0];
-    if (file) file_io.emit('upload', file);
+    if (file) file_io.emit('upload', {name: "test", file});
 };
 
 

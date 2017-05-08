@@ -2,12 +2,11 @@ import ftype from 'file-type';
 import fs from 'fs';
 import uuid from 'uuid/v4';
 import _ from 'lodash';
-import gcpk from 'get-canvas-pixel-color';
 import WrongFileTypeError from '../errors/WrongFileTypeError';
-import Canvas from 'canvas';
-import getSizes from 'image-size';
+import ConversionError from '../errors/ConversionError';
+import pixels from 'get-pixels';
 
-global.Image = Canvas.Image;
+const gm = require('gm').subClass({imageMagick: true});
 
 export default class Asciithyan {
     constructor(file, options) {
@@ -15,114 +14,143 @@ export default class Asciithyan {
             tempPath: _root + '/storage/temp/',
             allowedFileTypes: ['jpg', 'png', 'gif'],
             charset: ['█', '▓', '▒', '░', '@', '≡', '§', '€', '#', 'Ø', 'O', '=', '¤', '®', '+', ':', ',', '.', ' '],
-            resolution: 5
+            resolution: 5,
+            sideCoefficient: 1.9
         }, options);
-        this.coef = 1.8;
+        this.ready = false;
+        this.coef = options.sideCoefficient;
         this.max = 255;
-        this.xResolution = options.resolution;
-        this.yResolution = this.xResolution * this.coef;
+        this.yResolution = options.resolution;
+        // this.xResolution = this.yResolution;
+        this.xResolution = Math.floor(this.yResolution / this.coef);
         this.charset = options.charset;
         this.tempName = uuid();
-        this.tempPath = options.tempPath + this.tempName;
+        this.tempFile = options.tempPath + this.tempName;
         this.blob = file;
-        fs.writeFileSync(this.tempPath, this.blob);
+        fs.writeFileSync(this.tempFile, this.blob);
         [this.ext, this.mime] = Object.values(ftype(this.blob));
         if (!options.allowedFileTypes.includes(this.ext)) throw new WrongFileTypeError('Wrong file given!');
-        this.suicide = setTimeout(this.destroy.bind(this), 60000);
-        //TODO: не забыть, что хранение файла может не понадобиться
-    }
-
-    async makeAscii() {
-        let self = this;
-        return new Promise(async (res, rej) => {
-            if (self.mime == 'gif') {
-                rej('GIF is currently not supported');
-            }
-
-            let ctx;
-            try {
-                ctx = await this.makeContext();
-            } catch (e) {
-                rej(e);
-            }
-            this.ctx = ctx;
-
-            /**
-             * У нас есть контекст.
-             * Теперь надо пройтись по нему покубично.
-             */
-
-            this.chunks = this.squareAnalysis();
-            this.text = this.textify();
-            res(this.text);
-            this.destroy();
+        this.width = 0;
+        this.height = 0;
+        this.events = [];
+        this.highlight();
+        Promise.all([
+            this.getSize(),
+            this.highlight()
+        ]).then(() => {
+            console.log('done');
+            this.ready = true;
+            this.exec('onReady');
         });
+        this.suicide();
     }
 
-    async getSizes() {
+    onReady(func) {
+        if (!this.events['onReady']) this.events['onReady'] = [];
+        this.events['onReady'].push(func);
+    }
+
+    exec(name) {
+        for (let i in this.events[name]) {
+            this.events[name][i]();
+        }
+    }
+
+    getSize() {
         return new Promise((res, rej) => {
-            getSizes(this.tempPath, (err, sizes) => {
-                if (err) rej(err);
-                res(sizes);
-            })
-        });
+            gm(this.tempFile)
+                .size((err, size) => {
+                    if (err) throw err;
+                    this.width = size.width;
+                    this.height = size.height;
+                    res();
+                });
+        })
     }
 
-    getColors(x, y) {
-        return gcpk(this.ctx, x, y);
+    highlight() {
+        return new Promise((res, rej) => {
+            gm(this.tempFile)
+                .contrast(-3)
+                // .blackThreshold('10%', '10%', '10%', '10%')
+                // .whiteThreshold('90%', '90%', '90%', '90%')
+                .write(this.tempFile, () => {
+                    res();
+                })
+        })
     }
 
-    makeContext() {
+    async asciify() {
         return new Promise(async (res, rej) => {
-            try {
-                this.sizes = await this.getSizes();
-            } catch (e) {
-                console.error('Could not get sizes of image');
-            }
-            let canvas = new Canvas(this.sizes.width, this.sizes.height);
-            let ctx = canvas.getContext('2d');
-            let img = new Image;
-            img.onload = () => res(ctx);
-            img.src = this.blob;
-            ctx.drawImage(img, 0, 0, img.width, img.height);
+            if (this.mime === 'gif') rej('GIF is currently not supported');
+            this.pixelMap = await this.getPixelMap(this.tempFile, this.mime);
+            let chunks = await this.squareAnalysis();
+            let text = this.textify(chunks);
+            res(text);
+            this.suicide();
         });
+    }
+
+    getPixelMap(path, type) {
+        return new Promise((res, rej) => {
+            pixels(path, type, (err, pixels_array) => {
+                if (err) rej(err);
+                res(pixels_array);
+            });
+        })
+    }
+
+    getPixelColorAt(x, y) {
+        let out = [];
+        let pointer = this.pixelMap.offset + (this.pixelMap.stride[0] * (x)) + (this.pixelMap.stride[1] * (y));
+        for (let i = 0; i < 3; i++) {
+            let item = this.pixelMap.data[pointer + (this.pixelMap.stride[2] * i)];
+            if (typeof item === 'undefined') {
+                console.log(`Data length: ${this.pixelMap.data.length}, desired: ${pointer + (this.pixelMap.stride[2] * i)}`);
+                item = 0;
+            }
+            out.push(item);
+        }
+        let res = (out[0] + out[1] + out[2]) / 3;
+        //TODO: некоторые png все черные
+        // if (res > 2) console.log(res);
+        return res;
     }
 
     squareAnalysis() {
-        const chunks = [];
-        const __i = 0;
-        for (let y = 0; y < this.sizes.width + 1; y += this.yResolution) {
-            if (y > this.sizes.height) continue; //для каждого сегмента по разрешению по игреку
-            const yChunk = [];
-            for (let x = 0; x < this.sizes.height + 1; x += this.xResolution) {
-                if (x > this.sizes.height) continue;//для каждого сегмента по разрешению по иксу
-                //имеем координаты начал квадратиков, считаем суммарный цвет квадрата
-                const grays = [];
-                for (let _y = y; _y < (y + this.yResolution); _y++) { //для y
-                    for (let _x = x; _x < (x + this.xResolution); _x++) { //для x
-                        const {r, g, b} = this.getColors(_x, _y);
-                        const average = (r + g + b) / 3;
-                        grays.push(average);
+        return new Promise(async (res, rej) => {
+            let phrase = [];
+            for (let y = 0; y < this.height; y += this.yResolution) {
+                let line = [];
+                for (let x = 0; x < this.width; x += this.xResolution) {
+                    let average = [];
+                    for (let subx = x; subx < x + this.xResolution; subx++) {
+                        if (subx >= this.width) continue;
+                        for (let suby = y; suby < y + this.yResolution; suby++) {
+                            if (suby >= this.height) continue;
+                            average.push(this.getPixelColorAt(subx, suby));
+                        }
                     }
+                    if (!average.length) continue;
+                    let sum = 0;
+                    average.map(item => sum += item);
+                    sum = sum / average.length;
+                    line.push(sum);
                 }
-                let chunkAverage = 0;
-                for (let i in grays) chunkAverage += grays[i];
-                chunkAverage = chunkAverage / grays.length;
-                yChunk.push(chunkAverage);
+                if (line.length) phrase.push(line);
             }
-            chunks.push(yChunk);
-        }
-        return chunks;
+            res(phrase);
+        });
     }
 
-    textify() {
+    textify(phrase) {
         let str = '';
-        for (let i in this.chunks) {
+        for (let _l in phrase) {
             let line = '';
-            for (let e in this.chunks[i]) {
-                let n = (Math.ceil((this.chunks[i][e] / this.max) * this.charset.length) - 1);
+            for (let char in phrase[_l]) {
+                let n = (Math.ceil((phrase[_l][char] / this.max) * this.charset.length) - 1);
                 if (n < 0) n = 0;
-                if (!this.charset[n]) console.log(n);
+                if (!this.charset[n]) throw new ConversionError('No char at position ' + n + ' of charset!');
                 line += this.charset[n];
             }
             line += '\n';
@@ -131,9 +159,15 @@ export default class Asciithyan {
         return str;
     }
 
+    suicide(time) {
+        time = time || 60000;
+        clearTimeout(this.suicideTimeout);
+        this.suicideTimeout = setTimeout(this.destroy.bind(this), time);
+    }
+
     destroy() {
-        if (fs.existsSync(this.tempPath)) fs.unlink(this.tempPath, (err) => {
-            if (err) throw err
+        if (fs.existsSync(this.tempFile)) fs.unlink(this.tempFile, (err) => {
+            if (err) throw err;
         });
     }
 }

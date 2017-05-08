@@ -1,7 +1,7 @@
-export default class WrongFileTypeError extends Error {
+export default class ConversionError extends Error {
     constructor(msg) {
         super();
-        this.name = 'WrongFileTypeError';
+        this.name = 'ConversionError';
         this.message = msg || '';
         Error.captureStackTrace(this, this.constructor);
     }

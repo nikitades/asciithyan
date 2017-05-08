@@ -36,6 +36,8 @@
     "file-loader": "^0.11.1",
     "file-type": "^4.3.0",
     "get-canvas-pixel-color": "^1.0.0",
+    "get-pixels": "^3.3.0",
+    "gm": "^1.23.0",
     "image-size": "^0.5.1",
     "jimp": "^0.2.27",
     "jquery": "^3.2.1",

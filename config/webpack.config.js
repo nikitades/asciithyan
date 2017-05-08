@@ -90,6 +90,10 @@ module.exports = [
                     test: /\.(pug)$/,
                     loader: 'pug-loader'
                 },
+                {
+                    test: /\.(node)$/,
+                    loader: 'file-loader'
+                },
             ]
         },
         plugins: [
