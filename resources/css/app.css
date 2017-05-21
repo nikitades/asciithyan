@@ -7,3 +7,24 @@
 main {
     flex: 1 0 auto;
 }
+
+.asciiItem {
+    font-size: 10px;
+    background: lightgoldenrodyellow;
+    color: dimgray;
+    display: inline-block;
+    padding: 0 5px;
+    margin: 0;
+}
+
+.card-image {
+    font-size: 0px;
+}
+
+.frames .asciiItem {
+    display: none;
+}
+
+.frames .asciiItem.active {
+    display: inline-block;
+}

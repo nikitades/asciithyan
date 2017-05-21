@@ -4,7 +4,7 @@ const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
 const fs = require('fs');
 
 let nodeModules = fs.readdirSync('node_modules')
-    .filter(function(x) {
+    .filter(function (x) {
         return ['.bin'].indexOf(x) === -1;
     });
 
@@ -23,14 +23,14 @@ module.exports = [
             loaders: [
                 {
                     test: /\.json$/,
-                    loader: "json"
+                    loader: "json-loader"
                 },
                 {
                     test: /\.jsx?$/,
                     exclude: [/node_modules/],
                     loader: "babel-loader",
                     query: {
-                        presets: ['es2015', 'react']
+                        presets: ['es2015', 'react', 'stage-2']
                     }
                 },
                 {
@@ -60,7 +60,7 @@ module.exports = [
             __filename: true
         },
         externals: [
-            function(context, request, callback) {
+            function (context, request, callback) {
                 let pathStart = request.split('/')[0];
                 if (nodeModules.indexOf(pathStart) >= 0 && request != 'webpack/hot/signal.js') {
                     return callback(null, "commonjs " + request);
@@ -72,14 +72,14 @@ module.exports = [
             loaders: [
                 {
                     test: /\.json$/,
-                    loader: "json"
+                    loader: "json-loader"
                 },
                 {
                     test: /\.jsx?$/,
                     exclude: [/node_modules/],
                     loader: "babel-loader",
                     query: {
-                        presets: ['es2015', 'react']
+                        presets: ['es2015', 'react', 'stage-2']
                     }
                 },
                 {

@@ -10,50 +10,37 @@ const gm = require('gm').subClass({imageMagick: true});
 
 export default class Asciithyan {
     constructor(file, options) {
-        options = _.extend({
-            tempPath: _root + '/storage/temp/',
-            allowedFileTypes: ['jpg', 'png', 'gif'],
-            charset: ['█', '▓', '▒', '░', '@', '≡', '§', '€', '#', 'Ø', 'O', '=', '¤', '®', '+', ':', ',', '.', ' '],
-            resolution: 5,
-            sideCoefficient: 1.9
-        }, options);
-        this.ready = false;
-        this.coef = options.sideCoefficient;
-        this.max = 255;
-        this.yResolution = options.resolution;
-        // this.xResolution = this.yResolution;
-        this.xResolution = Math.floor(this.yResolution / this.coef);
-        this.charset = options.charset;
-        this.tempName = uuid();
-        this.tempFile = options.tempPath + this.tempName;
-        this.blob = file;
-        fs.writeFileSync(this.tempFile, this.blob);
-        [this.ext, this.mime] = Object.values(ftype(this.blob));
-        if (!options.allowedFileTypes.includes(this.ext)) throw new WrongFileTypeError('Wrong file given!');
-        this.width = 0;
-        this.height = 0;
-        this.events = [];
-        this.highlight();
-        Promise.all([
-            this.getSize(),
-            this.highlight()
-        ]).then(() => {
-            console.log('done');
-            this.ready = true;
-            this.exec('onReady');
-        });
-        this.suicide();
-    }
-
-    onReady(func) {
-        if (!this.events['onReady']) this.events['onReady'] = [];
-        this.events['onReady'].push(func);
-    }
-
-    exec(name) {
-        for (let i in this.events[name]) {
-            this.events[name][i]();
-        }
+        return new Promise((res, rej) => {
+            options = _.extend({
+                tempPath: _root + '/storage/temp/',
+                allowedFileTypes: ['jpg', 'png', 'gif'],
+                charset: ['█', '▓', '▒', '░', '@', '≡', '§', '€', '#', 'Ø', 'O', '=', '¤', '®', '+', ':', ',', '.', ' '],
+                resolution: 5,
+                sideCoefficient: 1.9
+            }, options);
+            this.ready = false;
+            this.coef = options.sideCoefficient;
+            this.max = 255;
+            this.yResolution = options.resolution;
+            // this.xResolution = this.yResolution;
+            this.xResolution = Math.floor(this.yResolution / this.coef);
+            this.charset = options.charset;
+            this.tempName = uuid();
+            this.tempFile = options.tempPath + this.tempName;
+            this.blob = file;
+            fs.writeFileSync(this.tempFile, this.blob);
+            [this.ext, this.mime] = Object.values(ftype(this.blob));
+            if (!options.allowedFileTypes.includes(this.ext)) throw new WrongFileTypeError('Wrong file given!');
+            this.width = 0;
+            this.height = 0;
+            this.events = [];
+            this.highlight();
+            Promise.all([
+                this.getSize(),
+                this.highlight()
+            ]).then(() => res(this));
+            this.suicide();
+        })
     }
 
     getSize() {
@@ -71,9 +58,8 @@ export default class Asciithyan {
     highlight() {
         return new Promise((res, rej) => {
             gm(this.tempFile)
-                .contrast(-3)
-                // .blackThreshold('10%', '10%', '10%', '10%')
-                // .whiteThreshold('90%', '90%', '90%', '90%')
+                .contrast(-5)
+                .modulate(255, -100)
                 .write(this.tempFile, () => {
                     res();
                 })
@@ -82,16 +68,57 @@ export default class Asciithyan {
 
     async asciify() {
         return new Promise(async (res, rej) => {
-            if (this.mime === 'gif') rej('GIF is currently not supported');
-            this.pixelMap = await this.getPixelMap(this.tempFile, this.mime);
-            let chunks = await this.squareAnalysis();
-            let text = this.textify(chunks);
-            res(text);
+            switch (this.ext) {
+                case 'gif':
+                    this.pixelMap = await this.getAnimatedPixelMap(this.tempFile, this.mime);
+                    let frames = [];
+                    for (let i in this.pixelMap) {
+                        frames.push(this.textify(await this.squareAnalysis(this.pixelMap[i])));
+                    }
+                    res({
+                        animated: true,
+                        body: frames
+                    });
+                    break;
+                case 'jpeg':
+                case 'jpg':
+                case 'png':
+                case 'bmp':
+                    this.pixelMap = await this.getPlainPixelMap(this.tempFile, this.mime);
+                    let chunks = await this.squareAnalysis(this.pixelMap);
+                    let text = this.textify(chunks);
+                    res({
+                        animated: false,
+                        body: text
+                    });
+                    break;
+            }
             this.suicide();
         });
     }
 
-    getPixelMap(path, type) {
+    getAnimatedPixelMap(path, type) {
+        return new Promise((res, rej) => {
+            pixels(path, type, (err, pixels_array) => {
+                if (err) rej(err);
+                let frames = pixels_array.shape[0];
+                let length = pixels_array.stride[0];
+                let chunks = [];
+                let _stride = pixels_array.stride;
+                _stride.shift();
+                for (let i = 0; i < frames; i++) {
+                    chunks.push({
+                        data: pixels_array.data.slice(i, i + length),
+                        stride: _stride,
+                        offset: pixels_array.offset
+                    });
+                }
+                res(chunks);
+            })
+        });
+    }
+
+    getPlainPixelMap(path, type) {
         return new Promise((res, rej) => {
             pixels(path, type, (err, pixels_array) => {
                 if (err) rej(err);
@@ -100,24 +127,19 @@ export default class Asciithyan {
         })
     }
 
-    getPixelColorAt(x, y) {
+    getPixelColorAt(x, y, pixelMap) {
         let out = [];
-        let pointer = this.pixelMap.offset + (this.pixelMap.stride[0] * (x)) + (this.pixelMap.stride[1] * (y));
-        for (let i = 0; i < 3; i++) {
-            let item = this.pixelMap.data[pointer + (this.pixelMap.stride[2] * i)];
-            if (typeof item === 'undefined') {
-                console.log(`Data length: ${this.pixelMap.data.length}, desired: ${pointer + (this.pixelMap.stride[2] * i)}`);
-                item = 0;
-            }
+        let pointer = pixelMap.offset + (pixelMap.stride[0] * x) + (pixelMap.stride[1] * y);
+        for (let i = 0; i < 4; i++) {
+            let item = pixelMap.data[pointer + (pixelMap.stride[2] * i)];
+            if (typeof item === 'undefined') throw new ConversionError(`Data length: ${pixelMap.data.length}, desired: ${pointer + (pixelMap.stride[2] * i)}`);
             out.push(item);
         }
-        let res = (out[0] + out[1] + out[2]) / 3;
-        //TODO: некоторые png все черные
-        // if (res > 2) console.log(res);
-        return res;
+        if (out[3] < this.max / this.charset.length) return 255;
+        return (((out[0] + out[1] + out[2]) / 3) * (out[3] / this.max));
     }
 
-    squareAnalysis() {
+    squareAnalysis(pixelMap) {
         return new Promise(async (res, rej) => {
             let phrase = [];
             for (let y = 0; y < this.height; y += this.yResolution) {
@@ -128,7 +150,7 @@ export default class Asciithyan {
                         if (subx >= this.width) continue;
                         for (let suby = y; suby < y + this.yResolution; suby++) {
                             if (suby >= this.height) continue;
-                            average.push(this.getPixelColorAt(subx, suby));
+                            average.push(this.getPixelColorAt(subx, suby, pixelMap));
                         }
                     }
                     if (!average.length) continue;

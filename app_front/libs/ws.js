@@ -1,4 +1,5 @@
 import ioc from 'socket.io-client';
+import ws from '../libs/ws';
 let connections = {};
 
 export default (url) => {
