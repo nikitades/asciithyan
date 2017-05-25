@@ -23,6 +23,5 @@ try {
     }
     console.log("Environment: " + config.app.env);
 } catch (e) {
-    console.log('here');
     console.log("\nERROR\n" + e.message + "\nERROR\n");
 }

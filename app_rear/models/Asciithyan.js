@@ -11,20 +11,22 @@ const gm = require('gm').subClass({imageMagick: true});
 export default class Asciithyan {
     constructor(file, options) {
         return new Promise((res, rej) => {
+            this.timer = new Date();
             options = _.extend({
                 tempPath: _root + '/storage/temp/',
                 allowedFileTypes: ['jpg', 'png', 'gif'],
                 charset: ['█', '▓', '▒', '░', '@', '≡', '§', '€', '#', 'Ø', 'O', '=', '¤', '®', '+', ':', ',', '.', ' '],
                 resolution: 5,
-                sideCoefficient: 1.9
+                sideCoefficient: 2.4,
+                maxWidth: 800,
+                maxHeight: 600,
+                debug: false
             }, options);
+            this.options = options;
             this.ready = false;
-            this.coef = options.sideCoefficient;
             this.max = 255;
             this.yResolution = options.resolution;
-            // this.xResolution = this.yResolution;
-            this.xResolution = Math.floor(this.yResolution / this.coef);
-            this.charset = options.charset;
+            this.xResolution = Math.floor(this.yResolution / this.options.sideCoefficient);
             this.tempName = uuid();
             this.tempFile = options.tempPath + this.tempName;
             this.blob = file;
@@ -33,12 +35,12 @@ export default class Asciithyan {
             if (!options.allowedFileTypes.includes(this.ext)) throw new WrongFileTypeError('Wrong file given!');
             this.width = 0;
             this.height = 0;
-            this.events = [];
-            this.highlight();
             Promise.all([
-                this.getSize(),
-                this.highlight()
-            ]).then(() => res(this));
+                this.getSize()
+                    .then(this.fit.bind(this))
+                    .then(this.highlight.bind(this))
+                    .catch(rej)
+            ]).then(() => res(this)).catch(rej);
             this.suicide();
         })
     }
@@ -55,15 +57,37 @@ export default class Asciithyan {
         })
     }
 
+    fit() {
+        return new Promise((res, rej) => {
+            if (this.width > this.options.maxWidth) {
+                this.height = this.height / (this.width / this.options.maxWidth);
+                this.width = this.options.maxWidth;
+            } else if (this.height > this.options.maxHeight) {
+                this.width = this.width / (this.height / this.options.maxHeight);
+                this.height = this.options.maxHeight;
+            }
+
+            // let newWidth = Math.ceil(this.width / this.coef);
+            // let newHeight = Math.ceil(this.height / this.coef);
+            let self = this;
+            gm(this.tempFile)
+                .resize(this.width, this.height)
+                .write(this.tempFile, function () {
+                    self.getSize()
+                        .then(res);
+                });
+        });
+    }
+
     highlight() {
         return new Promise((res, rej) => {
             gm(this.tempFile)
-                .contrast(-5)
-                .modulate(255, -100)
-                .write(this.tempFile, () => {
-                    res();
-                })
-        })
+                .contrast(-2)
+                .modulate(-255, -255)
+                // .colors(this.options.charset.length)
+                .quality(15)
+                .write(this.tempFile, res)
+        });
     }
 
     async asciify() {
@@ -87,6 +111,7 @@ export default class Asciithyan {
                     this.pixelMap = await this.getPlainPixelMap(this.tempFile, this.mime);
                     let chunks = await this.squareAnalysis(this.pixelMap);
                     let text = this.textify(chunks);
+                    this.options.debug ? console.log((new Date() - this.timer) / 1000) : '';
                     res({
                         animated: false,
                         body: text
@@ -108,7 +133,7 @@ export default class Asciithyan {
                 _stride.shift();
                 for (let i = 0; i < frames; i++) {
                     chunks.push({
-                        data: pixels_array.data.slice(i, i + length),
+                        data: pixels_array.data.slice(i * length, (i+1) * length),
                         stride: _stride,
                         offset: pixels_array.offset
                     });
@@ -135,7 +160,7 @@ export default class Asciithyan {
             if (typeof item === 'undefined') throw new ConversionError(`Data length: ${pixelMap.data.length}, desired: ${pointer + (pixelMap.stride[2] * i)}`);
             out.push(item);
         }
-        if (out[3] < this.max / this.charset.length) return 255;
+        if (out[3] < this.max / this.options.charset.length) return 255;
         return (((out[0] + out[1] + out[2]) / 3) * (out[3] / this.max));
     }
 
@@ -170,10 +195,10 @@ export default class Asciithyan {
         for (let _l in phrase) {
             let line = '';
             for (let char in phrase[_l]) {
-                let n = (Math.ceil((phrase[_l][char] / this.max) * this.charset.length) - 1);
+                let n = (Math.ceil((phrase[_l][char] / this.max) * this.options.charset.length) - 1);
                 if (n < 0) n = 0;
-                if (!this.charset[n]) throw new ConversionError('No char at position ' + n + ' of charset!');
-                line += this.charset[n];
+                if (!this.options.charset[n]) throw new ConversionError('No char at position ' + n + ' of charset!');
+                line += this.options.charset[n];
             }
             line += '\n';
             str += line;
