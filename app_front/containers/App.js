@@ -87,6 +87,7 @@ export default class App extends React.Component {
                                     <blockquote>
                                         <h5>Now in NodeJS</h5>
                                     </blockquote>
+                                    <p>Напоминаю, что автор сайта не является автором материалов на сайте. Все изображения загружены посетителями.</p>
                                 </div>
                                 <div className="section">
                                     <Uploader fio={this.state.fio} isUploading={this.state.isUploading}/>
