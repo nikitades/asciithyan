@@ -1,3 +1,4 @@
+import Path from 'path';
 import ftype from 'file-type';
 import fs from 'fs';
 import uuid from 'uuid/v4';
@@ -13,7 +14,7 @@ export default class Asciithyan {
         return new Promise((res, rej) => {
             this.timer = new Date();
             options = _.extend({
-                tempPath: _root + '/storage/temp/',
+                tempPath: _root + '/web/images/',
                 allowedFileTypes: ['jpg', 'png', 'gif'],
                 charset: ['█', '▓', '▒', '░', '@', '≡', '§', '€', '#', 'Ø', 'O', '=', '¤', '®', '+', ':', ',', '.', ' '],
                 resolution: 5,
@@ -28,10 +29,10 @@ export default class Asciithyan {
             this.yResolution = options.resolution;
             this.xResolution = Math.floor(this.yResolution / this.options.sideCoefficient);
             this.tempName = uuid();
-            this.tempFile = options.tempPath + this.tempName;
             this.blob = file;
-            fs.writeFileSync(this.tempFile, this.blob);
             [this.ext, this.mime] = Object.values(ftype(this.blob));
+            this.tempFile = options.tempPath + this.tempName + '.' + this.ext;
+            fs.writeFileSync(this.tempFile, this.blob);
             if (!options.allowedFileTypes.includes(this.ext)) throw new WrongFileTypeError('Wrong file given!');
             this.width = 0;
             this.height = 0;
@@ -41,7 +42,7 @@ export default class Asciithyan {
                     .then(this.highlight.bind(this))
                     .catch(rej)
             ]).then(() => res(this)).catch(rej);
-            this.suicide();
+            // this.suicide();
         })
     }
 
@@ -80,11 +81,12 @@ export default class Asciithyan {
     }
 
     highlight() {
+        //TODO: динамическая контрастность
         return new Promise((res, rej) => {
             gm(this.tempFile)
-                .contrast(-2)
+                .contrast(-4)
                 .modulate(-255, -255)
-                // .colors(this.options.charset.length)
+                .colors(this.options.charset.length)
                 .quality(15)
                 .write(this.tempFile, res)
         });
@@ -101,6 +103,7 @@ export default class Asciithyan {
                     }
                     res({
                         animated: true,
+                        source: Path.basename(this.tempFile),
                         body: frames
                     });
                     break;
@@ -114,11 +117,12 @@ export default class Asciithyan {
                     this.options.debug ? console.log((new Date() - this.timer) / 1000) : '';
                     res({
                         animated: false,
+                        source: Path.basename(this.tempFile),
                         body: text
                     });
                     break;
             }
-            this.suicide();
+            // this.suicide();
         });
     }
 

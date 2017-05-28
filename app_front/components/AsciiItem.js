@@ -11,6 +11,11 @@ export default class AsciiItem extends React.Component {
         }
     }
 
+    reverse() {
+        $(this.refs.ascii).toggleClass('hiddendiv');
+        $(this.refs.source).toggleClass('hiddendiv');
+    }
+
     render() {
         if (this.props.picture.notify) notify = true;
         let frame = this.props.picture.animated ?
@@ -20,7 +25,13 @@ export default class AsciiItem extends React.Component {
             <div className="row">
                 <div ref="card" className="card" style={{display: 'inline-block'}}>
                     <div className="card-image">
-                        {frame}
+                        <div ref="ascii" className="ascii-image">
+                            {frame}
+                        </div>
+                        <div ref="source" className="ascii-source hiddendiv">
+                            <img src={/images/ + this.props.picture.source} alt=""/>
+                        </div>
+                        <a className="btn-floating halfway-fab waves-effect waves-light red" onClick={this.reverse.bind(this)}><i className="material-icons">loop</i></a>
                     </div>
                 </div>
             </div>

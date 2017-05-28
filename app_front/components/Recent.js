@@ -11,6 +11,11 @@ export default class Recent extends React.Component {
             <div>
                 <audio src="/resources/misc/beer_can_opening.ogg"></audio>
                 {items}
+                <div className="fixed-action-btn">
+                    <a className="btn-floating btn-large red" onClick={this.props.request}>
+                        <i style={{fontSize: '2.5rem'}} className="large material-icons">forward_10</i>
+                    </a>
+                </div>
             </div>
         );
     }

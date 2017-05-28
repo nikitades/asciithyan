@@ -50,5 +50,10 @@ export default (app) => {
                     });
                 }
             });
+            socket.on('req_limit', async data => {
+                let coll_conversions = await app.db.collection('conversions');
+                let res = await coll_conversions.find({}, null, {skip: data.start, limit: 10, sort: {_id: -1}}).toArray();
+                socket.emit('res_limit', res);
+            });
         });
 }

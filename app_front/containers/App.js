@@ -53,8 +53,25 @@ export default class App extends React.Component {
             })
         });
 
+        this.state.fio.on('res_limit', data => {
+            this.setState({
+                recentItems: [
+                    ...this.state.recentItems,
+                    ...data
+                ]
+            }, () => {
+                $('body').animate({
+                    scrollTop: $('.card-image').eq($('.card-image').length - 10).offset().top
+                });
+            });
+        });
+
         this.state.fio.emit('req_latest');
 
+    }
+
+    request() {
+        this.state.fio.emit('req_limit', {start: this.state.recentItems.length});
     }
 
     render() {
@@ -75,7 +92,7 @@ export default class App extends React.Component {
                                     <Uploader fio={this.state.fio} isUploading={this.state.isUploading}/>
                                 </div>
                                 <div className="section">
-                                    <Recent items={this.state.recentItems}/>
+                                    <Recent items={this.state.recentItems} request={this.request.bind(this)}/>
                                 </div>
                             </div>
                         </div>
