@@ -10,13 +10,6 @@ export default class Footer extends React.Component {
                             <p className="text-lighten-5">A free-to-use tool make an animated text from your GIFs.</p>
                         </div>
                         <div className="col l4 offset-l2 s12">
-                            <h5>Pages</h5>
-                            <ul>
-                                <li><a href="/">Main</a></li>
-                                <li><a href="/latest">Latest</a></li>
-                                <li><a href="/about">About</a></li>
-                                <li><a href="/stats">Stats</a></li>
-                            </ul>
                         </div>
                     </div>
                 </div>

@@ -16,15 +16,13 @@ export default class Header extends React.Component {
                         </a>
                         <ul className="hide-on-med-and-down">
                             <li><a href="/">Main</a></li>
-                            <li><a href="/latest">Latest</a></li>
-                            <li><a href="/about">About</a></li>
-                            <li><a href="/stats">Stats</a></li>
+                            <li><a href="https://github.com/nikitades/asciithyan">Github</a></li>
+                            <li><a target="_blank" href="http://vk.com/nikitades">Author</a></li>
                         </ul>
                         <ul id="mobile-demo" className="side-nav">
                             <li><a href="/">Main</a></li>
-                            <li><a href="/latest">Latest</a></li>
-                            <li><a href="/about">About</a></li>
-                            <li><a href="/stats">Stats</a></li>
+                            <li><a href="https://github.com/nikitades/asciithyan">Github</a></li>
+                            <li><a target="_blank" href="http://vk.com/nikitades">Author</a></li>
                         </ul>
                     </div>
                 </div>
