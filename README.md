@@ -4,6 +4,9 @@ The NodeJS app to convert images to ascii, optionally animated.
 # Main goal
 Just for fun.
 
+## The testing environment
+http://ascii.sknt.ru
+
 # The concept
 Well. I split the image to the pixel map of NDarray. 
 Then I analyse the mail color of the pre-chosen square.
